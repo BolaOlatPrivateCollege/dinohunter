@@ -7,20 +7,24 @@
 <style>
 body {
   margin: 0;
-  background: #f7f7f7;
   overflow: hidden;
   font-family: Arial;
 }
 
+/* 🌵 DESERT BACKGROUND */
+body {
+  background: url('images/desert.jpg') no-repeat center/cover;
+}
+
 body.night {
-  background: #111;
-  color: white;
+  filter: brightness(0.4);
 }
 
 /* MENU */
 #menu {
   text-align: center;
   margin-bottom: 10px;
+  color: white;
 }
 
 /* GAME */
@@ -30,10 +34,6 @@ body.night {
   height: 250px;
   border-bottom: 3px solid black;
   overflow: hidden;
-}
-
-body.night #game {
-  border-color: white;
 }
 
 /* 👻 GHOST */
@@ -63,7 +63,6 @@ body.night #game {
   height: 50px;
   background: url('images/cloud.png') no-repeat center/contain;
   opacity: 0.8;
-  z-index: 1;
 }
 
 /* 🌵 GROUND */
@@ -74,39 +73,40 @@ body.night #game {
   height: 20px;
   background: repeating-linear-gradient(
     to right,
-    #555 0px,
-    #555 20px,
-    transparent 20px,
-    transparent 40px
-  );
-  z-index: 1;
-}
-
-body.night #ground {
-  background: repeating-linear-gradient(
-    to right,
-    #aaa 0px,
-    #aaa 20px,
+    #444 0px,
+    #444 20px,
     transparent 20px,
     transparent 40px
   );
 }
 
-/* 💥 EXPLOSION (FIXED) */
+/* 💥 BIG EXPLOSION */
 .explosion {
   position: absolute;
-  width: 80px;
-  height: 80px;
+  width: 180px;
+  height: 180px;
   background: url('images/explosion.gif') no-repeat center/contain;
-  z-index: 999; /* ensures visibility */
-  pointer-events: none;
+  z-index: 999;
+}
+
+/* 📳 SCREEN SHAKE */
+.shake {
+  animation: shake 0.3s;
+}
+
+@keyframes shake {
+  0% { transform: translate(0, 0); }
+  25% { transform: translate(-10px, 5px); }
+  50% { transform: translate(10px, -5px); }
+  75% { transform: translate(-5px, 5px); }
+  100% { transform: translate(0, 0); }
 }
 
 /* SCORE */
 #score, #highScore {
   position: absolute;
   right: 20px;
-  z-index: 3;
+  color: white;
 }
 
 #score { top: 10px; }
@@ -143,7 +143,6 @@ button {
   <div id="highScore">High: 0</div>
 </div>
 
-<!-- SOUND -->
 <audio id="jumpSound" src="https://actions.google.com/sounds/v1/cartoon/wood_plank_flicks.ogg"></audio>
 <audio id="hitSound" src="https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg"></audio>
 <audio id="bgMusic" src="https://actions.google.com/sounds/v1/ambiences/barnyard.ogg" loop></audio>
@@ -225,7 +224,6 @@ function resetGame() {
 
   dino.style.bottom = "20px";
   scoreDisplay.innerHTML = "Score: 0";
-
   ground.style.transform = "translateX(0)";
 
   bgMusic.pause();
@@ -373,7 +371,7 @@ function startScore() {
   }, 100);
 }
 
-/* 💥 EXPLOSION FIXED */
+/* 💥 BIG EXPLOSION + SHAKE */
 function explode() {
   const boom = document.createElement("div");
   boom.classList.add("explosion");
@@ -381,12 +379,16 @@ function explode() {
   const dinoRect = dino.getBoundingClientRect();
   const gameRect = game.getBoundingClientRect();
 
-  boom.style.left = (dinoRect.left - gameRect.left) + "px";
-  boom.style.bottom = (20 + position) + "px";
+  boom.style.left = (dinoRect.left - gameRect.left - 50) + "px";
+  boom.style.bottom = (20 + position - 40) + "px";
 
   game.appendChild(boom);
 
-  setTimeout(() => boom.remove(), 400);
+  // SCREEN SHAKE
+  game.classList.add("shake");
+  setTimeout(() => game.classList.remove("shake"), 300);
+
+  setTimeout(() => boom.remove(), 500);
 }
 
 /* GAME OVER */
