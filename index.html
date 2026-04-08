@@ -12,7 +12,6 @@ body {
   background: url('images/desert.jpg') no-repeat center/cover;
 }
 
-/* DARK OVERLAY */
 body::before {
   content: "";
   position: fixed;
@@ -24,7 +23,6 @@ body::before {
 /* MENU */
 #menu {
   text-align: center;
-  margin-bottom: 10px;
   color: white;
   position: relative;
   z-index: 2;
@@ -43,7 +41,7 @@ body::before {
   z-index: 1;
 }
 
-/* GHOST */
+/* 👻 */
 #dino {
   position: absolute;
   bottom: 20px;
@@ -54,7 +52,7 @@ body::before {
   z-index: 2;
 }
 
-/* CACTUS */
+/* 🌵 */
 .obstacle {
   position: absolute;
   bottom: 20px;
@@ -63,7 +61,7 @@ body::before {
   z-index: 2;
 }
 
-/* CLOUD */
+/* ☁️ */
 .cloud {
   position: absolute;
   width: 100px;
@@ -72,7 +70,7 @@ body::before {
   opacity: 0.8;
 }
 
-/* GROUND */
+/* 🌵 GROUND */
 #ground {
   position: absolute;
   bottom: 0;
@@ -94,7 +92,6 @@ body::before {
   height: 350px;
   background: url('images/explosion.gif') no-repeat center/contain;
   z-index: 999;
-  pointer-events: none;
 }
 
 /* SHAKE */
@@ -184,7 +181,6 @@ let groundPos = 0;
 
 let lastObstacle = null;
 
-/* HIGH SCORE */
 let highScore = localStorage.getItem("dinoHighScore") || 0;
 highScoreDisplay.innerHTML = "High: " + highScore;
 
@@ -193,7 +189,6 @@ function startGame() {
   if (gameRunning) return;
 
   resetGame();
-
   gameRunning = true;
   menu.style.display = "none";
 
@@ -266,7 +261,6 @@ function jump() {
   if (jumpCount < 2) {
     velocity = 15;
     jumpCount++;
-
     jumpSound.currentTime = 0;
     jumpSound.play();
   }
@@ -376,19 +370,17 @@ function startScore() {
   }, 100);
 }
 
-/* 💥 MASSIVE EXPLOSION CENTERED */
+/* 💥 FIXED EXPLOSION POSITION */
 function explode() {
   const boom = document.createElement("div");
   boom.classList.add("explosion");
 
-  const dinoRect = dino.getBoundingClientRect();
-  const obsRect = lastObstacle?.getBoundingClientRect();
-  const gameRect = game.getBoundingClientRect();
+  const dinoX = dino.offsetLeft;
+  const obsX = lastObstacle ? game.offsetWidth - parseInt(getComputedStyle(lastObstacle).right) : dinoX;
 
-  let centerX = dinoRect.left;
-  if (obsRect) centerX = (dinoRect.left + obsRect.left) / 2;
+  const centerX = (dinoX + obsX) / 2;
 
-  boom.style.left = (centerX - gameRect.left - 175) + "px";
+  boom.style.left = (centerX - 175) + "px";
   boom.style.bottom = (20 + position - 100) + "px";
 
   game.appendChild(boom);
@@ -413,7 +405,6 @@ function triggerGameOver() {
   clearInterval(scoreInterval);
 
   bgMusic.pause();
-
   hitSound.currentTime = 0;
   hitSound.play();
 
