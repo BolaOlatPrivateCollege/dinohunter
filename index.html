@@ -72,7 +72,7 @@ body {
   );
 }
 
-/* 💥 MASSIVE EXPLOSION */
+/* 💥 EXPLOSION */
 .explosion {
   position: absolute;
   width: 350px;
@@ -94,13 +94,17 @@ body {
   100% { transform: translate(0,0); }
 }
 
-/* SCORE */
+/* 🏆 SCORE FIX */
 #score {
   position: absolute;
-  right: 20px;
   top: 10px;
+  right: 20px;
   color: white;
   font-weight: bold;
+  z-index: 1000;
+  background: rgba(0,0,0,0.6);
+  padding: 5px 10px;
+  border-radius: 5px;
 }
 
 /* BUTTON */
@@ -146,8 +150,6 @@ let speed = 4;
 let intervals = [];
 let timeouts = [];
 let groundPos = 0;
-
-let currentObstacle = null;
 
 /* START */
 function startGame() {
@@ -233,7 +235,6 @@ function spawnObstacle() {
   obs.style.right = "-60px";
 
   game.appendChild(obs);
-  currentObstacle = obs;
 
   let move = setInterval(() => {
     if (!gameRunning || gameOver) return;
@@ -241,7 +242,6 @@ function spawnObstacle() {
     let right = parseInt(getComputedStyle(obs).right);
     obs.style.right = right + speed + "px";
 
-    // collision
     if (
       right > window.innerWidth - 120 &&
       right < window.innerWidth - 40 &&
@@ -302,18 +302,20 @@ function moveGround(){
   intervals.push(g);
 }
 
-/* SCORE */
+/* 🏆 SCORE (WORKING FIX) */
 function startScore(){
   let s = setInterval(()=>{
     if(!gameRunning) return;
+
     score++;
-    scoreDisplay.innerHTML = "Score: " + score;
+    scoreDisplay.textContent = "Score: " + score;
+
   },100);
 
   intervals.push(s);
 }
 
-/* 💥 EXPLOSION (ACCURATE POSITION) */
+/* EXPLOSION */
 function explode(obs){
   if(explosionTriggered) return;
   explosionTriggered = true;
@@ -321,14 +323,11 @@ function explode(obs){
   const boom = document.createElement("div");
   boom.classList.add("explosion");
 
-  const obsRect = obs.getBoundingClientRect();
+  const rect = obs.getBoundingClientRect();
   const gameRect = game.getBoundingClientRect();
 
-  const x = obsRect.left - gameRect.left;
-  const y = obsRect.top - gameRect.top;
-
-  boom.style.left = (x - 140) + "px";
-  boom.style.top = (y - 140) + "px";
+  boom.style.left = (rect.left - gameRect.left - 140) + "px";
+  boom.style.top = (rect.top - gameRect.top - 140) + "px";
 
   game.appendChild(boom);
 
