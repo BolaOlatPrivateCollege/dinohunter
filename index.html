@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Dino Ghost Game Ultimate</title>
+<title>Ghost Dino Game</title>
 
 <style>
 body {
@@ -34,32 +34,31 @@ body.night #game {
   left: 50px;
   width: 50px;
   height: 50px;
-  background: url('https://i.imgur.com/4LGAZ8t.png') no-repeat center/contain;
+  background: url('images/ghost.png') no-repeat center/contain;
 }
 
-/* Explosion */
-.explosion {
-  position: absolute;
-  width: 60px;
-  height: 60px;
-  background: url('https://i.imgur.com/6X4FQZa.gif') no-repeat center/contain;
-}
-
-/* Obstacle */
 .obstacle {
   position: absolute;
   bottom: 0;
   right: -60px;
-  background: url('https://i.imgur.com/JYUB0m3.png') no-repeat center/contain;
+  width: 40px;
+  height: 60px;
+  background: url('images/cactus.png') no-repeat center/contain;
 }
 
-/* Cloud */
 .cloud {
   position: absolute;
   width: 60px;
   height: 30px;
-  background: url('https://i.imgur.com/U2b6v4k.png') no-repeat center/contain;
+  background: url('images/cloud.png') no-repeat center/contain;
   opacity: 0.8;
+}
+
+.explosion {
+  position: absolute;
+  width: 60px;
+  height: 60px;
+  background: url('images/explosion.gif') no-repeat center/contain;
 }
 
 #score, #highScore {
@@ -80,6 +79,7 @@ body.night #game {
 button {
   padding: 10px 20px;
   margin: 5px;
+  font-size: 16px;
   cursor: pointer;
 }
 </style>
@@ -88,7 +88,7 @@ button {
 <body>
 
 <div id="menu">
-  <h1>👻 Dino Ghost Game</h1>
+  <h1>👻 Ghost Runner</h1>
   <button onclick="startGame()">Start</button>
   <button onclick="restartGame()">Restart</button>
   <button onclick="togglePause()">Pause / Resume</button>
@@ -100,6 +100,7 @@ button {
   <div id="highScore">High: 0</div>
 </div>
 
+<!-- SOUND -->
 <audio id="jumpSound" src="https://actions.google.com/sounds/v1/cartoon/wood_plank_flicks.ogg"></audio>
 <audio id="hitSound" src="https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg"></audio>
 
@@ -113,14 +114,15 @@ const menu = document.getElementById("menu");
 const jumpSound = document.getElementById("jumpSound");
 const hitSound = document.getElementById("hitSound");
 
-/* ===== HIGH SCORE ===== */
-let highScore = localStorage.getItem("dinoHighScore") || 0;
-highScoreDisplay.innerHTML = "High: " + highScore;
-
+/* ===== GAME STATE ===== */
 let score = 0;
 let speed = 4;
 let gameRunning = false;
 let paused = false;
+
+/* ===== HIGH SCORE ===== */
+let highScore = localStorage.getItem("dinoHighScore") || 0;
+highScoreDisplay.innerHTML = "High: " + highScore;
 
 /* ===== START ===== */
 function startGame() {
@@ -139,7 +141,7 @@ function togglePause() {
   paused = !paused;
 }
 
-/* ===== DOUBLE JUMP ===== */
+/* ===== DOUBLE JUMP PHYSICS ===== */
 let velocity = 0;
 let gravity = 1;
 let position = 0;
@@ -172,26 +174,23 @@ function jump() {
   }
 }
 
+/* Controls */
 document.addEventListener("keydown", e => {
   if (e.code === "Space") jump();
 });
-
 document.addEventListener("touchstart", jump);
 
-/* ===== OBSTACLES ===== */
+/* ===== OBSTACLES (CACTUS) ===== */
 function createObstacle() {
   if (!gameRunning) return;
 
   const obstacle = document.createElement("div");
   obstacle.classList.add("obstacle");
 
-  let height = Math.random() * 40 + 30;
-  let width = Math.random() * 30 + 30;
+  let scale = Math.random() * 0.5 + 0.8;
+  obstacle.style.transform = `scale(${scale})`;
 
-  obstacle.style.height = height + "px";
-  obstacle.style.width = width + "px";
   obstacle.style.right = "-60px";
-
   game.appendChild(obstacle);
 
   let move = setInterval(() => {
@@ -202,7 +201,7 @@ function createObstacle() {
 
     if (right > window.innerWidth - 100 &&
         right < window.innerWidth - 50 &&
-        position < height) {
+        position < 50) {
       explode();
       gameOver();
       clearInterval(move);
@@ -217,7 +216,7 @@ function createObstacle() {
   setTimeout(createObstacle, Math.random() * 2000 + 1000);
 }
 
-/* ===== CLOUD ===== */
+/* ===== CLOUDS ===== */
 function createCloud() {
   if (!gameRunning) return;
 
@@ -246,10 +245,7 @@ function createCloud() {
 
 /* ===== AI DIFFICULTY ===== */
 function adjustDifficulty() {
-  // smarter scaling
   speed = 4 + (score / 200);
-
-  // cap speed
   if (speed > 12) speed = 12;
 }
 
@@ -269,15 +265,15 @@ setInterval(() => {
 
 /* ===== EXPLOSION ===== */
 function explode() {
-  const explosion = document.createElement("div");
-  explosion.classList.add("explosion");
+  const boom = document.createElement("div");
+  boom.classList.add("explosion");
 
-  explosion.style.left = "50px";
-  explosion.style.bottom = position + "px";
+  boom.style.left = "50px";
+  boom.style.bottom = position + "px";
 
-  game.appendChild(explosion);
+  game.appendChild(boom);
 
-  setTimeout(() => explosion.remove(), 500);
+  setTimeout(() => boom.remove(), 500);
 }
 
 /* ===== GAME OVER ===== */
