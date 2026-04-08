@@ -12,17 +12,11 @@ body {
   background: url('images/desert.jpg') no-repeat center/cover;
 }
 
-/* MENU */
 #menu {
   text-align: center;
   color: white;
 }
 
-#menu h1 {
-  text-shadow: 2px 2px 10px black;
-}
-
-/* GAME */
 #game {
   position: relative;
   width: 100%;
@@ -30,7 +24,6 @@ body {
   overflow: hidden;
 }
 
-/* 👻 */
 #dino {
   position: absolute;
   bottom: 20px;
@@ -40,7 +33,6 @@ body {
   background: url('images/ghost.png') no-repeat center/contain;
 }
 
-/* 🌵 */
 .obstacle {
   position: absolute;
   bottom: 20px;
@@ -48,7 +40,6 @@ body {
   background: url('images/cactus.png') no-repeat center/contain;
 }
 
-/* ☁️ */
 .cloud {
   position: absolute;
   width: 100px;
@@ -57,7 +48,6 @@ body {
   opacity: 0.8;
 }
 
-/* 🌵 GROUND */
 #ground {
   position: absolute;
   bottom: 0;
@@ -72,7 +62,6 @@ body {
   );
 }
 
-/* 💥 EXPLOSION */
 .explosion {
   position: absolute;
   width: 350px;
@@ -81,7 +70,6 @@ body {
   z-index: 999;
 }
 
-/* SHAKE */
 .shake {
   animation: shake 0.4s;
 }
@@ -94,7 +82,6 @@ body {
   100% { transform: translate(0,0); }
 }
 
-/* 🏆 SCORE FIX */
 #score {
   position: absolute;
   top: 10px;
@@ -107,7 +94,6 @@ body {
   border-radius: 5px;
 }
 
-/* BUTTON */
 button {
   padding: 10px 20px;
   margin: 5px;
@@ -130,12 +116,27 @@ button {
 </div>
 
 <script>
+
+/* ⚡ PRELOAD IMAGES */
+[
+  "images/ghost.png",
+  "images/cactus.png",
+  "images/cloud.png",
+  "images/explosion.gif",
+  "images/desert.jpg"
+].forEach(src => {
+  const img = new Image();
+  img.src = src;
+});
+
+/* ELEMENTS */
 const game = document.getElementById("game");
 const dino = document.getElementById("dino");
 const ground = document.getElementById("ground");
 const scoreDisplay = document.getElementById("score");
 const menu = document.getElementById("menu");
 
+/* STATE */
 let gameRunning = false;
 let gameOver = false;
 let explosionTriggered = false;
@@ -189,7 +190,7 @@ function resetGame() {
   explosionTriggered = false;
 
   dino.style.bottom = "20px";
-  scoreDisplay.innerHTML = "Score: 0";
+  scoreDisplay.textContent = "Score: 0";
   ground.style.transform = "translateX(0)";
 }
 
@@ -242,10 +243,14 @@ function spawnObstacle() {
     let right = parseInt(getComputedStyle(obs).right);
     obs.style.right = right + speed + "px";
 
+    const dinoRect = dino.getBoundingClientRect();
+    const obsRect = obs.getBoundingClientRect();
+
     if (
-      right > window.innerWidth - 120 &&
-      right < window.innerWidth - 40 &&
-      position < size
+      !gameOver &&
+      dinoRect.left < obsRect.right &&
+      dinoRect.right > obsRect.left &&
+      dinoRect.bottom > obsRect.top
     ) {
       triggerGameOver(obs);
     }
@@ -302,13 +307,17 @@ function moveGround(){
   intervals.push(g);
 }
 
-/* 🏆 SCORE (WORKING FIX) */
+/* SCORE */
 function startScore(){
   let s = setInterval(()=>{
-    if(!gameRunning) return;
+    if(!gameRunning || gameOver) return;
 
     score++;
     scoreDisplay.textContent = "Score: " + score;
+
+    if(score % 50 === 0){
+      speed += 0.5;
+    }
 
   },100);
 
@@ -325,9 +334,10 @@ function explode(obs){
 
   const rect = obs.getBoundingClientRect();
   const gameRect = game.getBoundingClientRect();
+  const boomSize = 350;
 
-  boom.style.left = (rect.left - gameRect.left - 140) + "px";
-  boom.style.top = (rect.top - gameRect.top - 140) + "px";
+  boom.style.left = (rect.left - gameRect.left + rect.width/2 - boomSize/2) + "px";
+  boom.style.top = (rect.top - gameRect.top + rect.height/2 - boomSize/2) + "px";
 
   game.appendChild(boom);
 
@@ -348,9 +358,14 @@ function triggerGameOver(obs){
 
   intervals.forEach(clearInterval);
   timeouts.forEach(clearTimeout);
+  intervals = [];
+  timeouts = [];
+
+  velocity = 0;
 
   menu.style.display = "block";
 }
+
 </script>
 
 </body>
