@@ -9,14 +9,17 @@ body {
   margin: 0;
   overflow: hidden;
   font-family: Arial;
-  background: url('images/desert.jpg') no-repeat center/cover;
+  transition: background 1s;
 }
 
-#menu {
-  text-align: center;
-  color: white;
-}
+/* DAY / NIGHT */
+.day { background: #87CEEB; }
+.night { background: #0b1a2a; }
 
+/* MENU */
+#menu { text-align: center; color: white; }
+
+/* GAME */
 #game {
   position: relative;
   width: 100%;
@@ -24,6 +27,7 @@ body {
   overflow: hidden;
 }
 
+/* 👻 FLOATING */
 #dino {
   position: absolute;
   bottom: 20px;
@@ -31,8 +35,15 @@ body {
   width: 70px;
   height: 70px;
   background: url('images/ghost.png') no-repeat center/contain;
+  animation: float 2s ease-in-out infinite;
 }
 
+@keyframes float {
+  0%,100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+
+/* 🌵 */
 .obstacle {
   position: absolute;
   bottom: 20px;
@@ -40,6 +51,13 @@ body {
   background: url('images/cactus.png') no-repeat center/contain;
 }
 
+/* 🧠 BOSS */
+.boss {
+  background: red !important;
+  border-radius: 10px;
+}
+
+/* ☁️ */
 .cloud {
   position: absolute;
   width: 100px;
@@ -48,20 +66,16 @@ body {
   opacity: 0.8;
 }
 
+/* GROUND */
 #ground {
   position: absolute;
   bottom: 0;
   width: 200%;
   height: 20px;
-  background: repeating-linear-gradient(
-    to right,
-    #444 0px,
-    #444 20px,
-    transparent 20px,
-    transparent 40px
-  );
+  background: repeating-linear-gradient(#444 0 20px, transparent 20px 40px);
 }
 
+/* 💥 */
 .explosion {
   position: absolute;
   width: 350px;
@@ -70,95 +84,74 @@ body {
   z-index: 999;
 }
 
-.shake {
-  animation: shake 0.4s;
-}
-
-@keyframes shake {
-  0% { transform: translate(0,0); }
-  25% { transform: translate(-12px,6px); }
-  50% { transform: translate(12px,-6px); }
-  75% { transform: translate(-6px,6px); }
-  100% { transform: translate(0,0); }
-}
-
-#score {
+/* SCORE */
+#score, #highScore {
   position: absolute;
-  top: 10px;
   right: 20px;
   color: white;
-  font-weight: bold;
-  z-index: 1000;
   background: rgba(0,0,0,0.6);
   padding: 5px 10px;
-  border-radius: 5px;
 }
 
-button {
-  padding: 10px 20px;
-  margin: 5px;
+#score { top: 10px; }
+#highScore { top: 40px; }
+
+/* SHAKE */
+.shake { animation: shake 0.4s; }
+@keyframes shake {
+  25% { transform: translate(-10px,5px); }
+  50% { transform: translate(10px,-5px); }
+  75% { transform: translate(-5px,5px); }
 }
 </style>
 </head>
 
-<body>
+<body class="day">
 
 <div id="menu">
   <h1>👻 Ghost Runner</h1>
   <button onclick="startGame()">Start</button>
-  <button onclick="resetGame()">Restart</button>
 </div>
 
 <div id="game">
   <div id="dino"></div>
   <div id="ground"></div>
   <div id="score">Score: 0</div>
+  <div id="highScore">High: 0</div>
 </div>
 
 <script>
 
-/* ⚡ PRELOAD IMAGES */
-[
-  "images/ghost.png",
-  "images/cactus.png",
-  "images/cloud.png",
-  "images/explosion.gif",
-  "images/desert.jpg"
-].forEach(src => {
-  const img = new Image();
-  img.src = src;
+/* 🔊 SOUNDS */
+const jumpSound = new Audio("sounds/jump.wav");
+const boomSound = new Audio("sounds/explosion.wav");
+
+/* PRELOAD */
+["ghost.png","cactus.png","cloud.png","explosion.gif"].forEach(src=>{
+  let img=new Image(); img.src="images/"+src;
 });
 
 /* ELEMENTS */
 const game = document.getElementById("game");
 const dino = document.getElementById("dino");
-const ground = document.getElementById("ground");
 const scoreDisplay = document.getElementById("score");
-const menu = document.getElementById("menu");
+const highScoreDisplay = document.getElementById("highScore");
 
 /* STATE */
-let gameRunning = false;
-let gameOver = false;
-let explosionTriggered = false;
+let gameRunning=false, gameOver=false;
+let position=0, velocity=0, jumpCount=0;
+let score=0, speed=4;
+let intervals=[], timeouts=[];
 
-let position = 0;
-let velocity = 0;
-let jumpCount = 0;
-
-let score = 0;
-let speed = 4;
-
-let intervals = [];
-let timeouts = [];
-let groundPos = 0;
+/* 💾 HIGH SCORE */
+let highScore = localStorage.getItem("ghostHigh") || 0;
+highScoreDisplay.textContent = "High: " + highScore;
 
 /* START */
-function startGame() {
-  if (gameRunning) return;
-
+function startGame(){
   resetGame();
-  gameRunning = true;
-  menu.style.display = "none";
+  gameRunning=true;
+  document.getElementById("menu").style.display="none";
 
   spawnObstacle();
   spawnCloud();
@@ -168,178 +161,145 @@ function startGame() {
 }
 
 /* RESET */
-function resetGame() {
+function resetGame(){
   intervals.forEach(clearInterval);
   timeouts.forEach(clearTimeout);
+  document.querySelectorAll(".obstacle,.cloud,.explosion").forEach(e=>e.remove());
 
-  document.querySelectorAll(".obstacle, .cloud, .explosion")
-    .forEach(el => el.remove());
-
-  intervals = [];
-  timeouts = [];
-
-  score = 0;
-  speed = 4;
-  position = 0;
-  velocity = 0;
-  jumpCount = 0;
-  groundPos = 0;
-
-  gameRunning = false;
-  gameOver = false;
-  explosionTriggered = false;
-
-  dino.style.bottom = "20px";
-  scoreDisplay.textContent = "Score: 0";
-  ground.style.transform = "translateX(0)";
+  score=0; speed=4; position=0; velocity=0;
+  gameOver=false;
+  scoreDisplay.textContent="Score: 0";
 }
 
 /* LOOP */
-function gameLoop() {
-  if (!gameRunning) return;
+function gameLoop(){
+  if(!gameRunning) return;
 
-  velocity -= 1;
-  position += velocity;
+  velocity-=1;
+  position+=velocity;
 
-  if (position <= 0) {
-    position = 0;
-    velocity = 0;
-    jumpCount = 0;
-  }
+  if(position<=0){ position=0; velocity=0; jumpCount=0; }
 
-  dino.style.bottom = (20 + position) + "px";
-
+  dino.style.bottom=(20+position)+"px";
   requestAnimationFrame(gameLoop);
 }
 
-/* JUMP */
-document.addEventListener("keydown", e => {
-  if (!gameRunning || gameOver) return;
-
-  if (e.code === "Space" && jumpCount < 2) {
-    velocity = 15;
+/* 📱 + ⌨️ JUMP */
+function jump(){
+  if(!gameRunning || gameOver) return;
+  if(jumpCount<2){
+    velocity=15;
     jumpCount++;
+    jumpSound.play();
   }
-});
+}
 
-/* OBSTACLE */
-function spawnObstacle() {
-  if (!gameRunning) return;
+document.addEventListener("keydown", e=>{ if(e.code==="Space") jump(); });
+document.addEventListener("touchstart", jump);
 
-  const obs = document.createElement("div");
+/* OBSTACLE + BOSS */
+function spawnObstacle(){
+  if(!gameRunning) return;
+
+  const obs=document.createElement("div");
   obs.classList.add("obstacle");
 
-  let size = Math.random() * 20 + 40;
+  let size=Math.random()*20+40;
 
-  obs.style.width = size + "px";
-  obs.style.height = size + "px";
-  obs.style.right = "-60px";
+  /* 🧠 BOSS every 300 score */
+  if(score>0 && score%300===0){
+    size=100;
+    obs.classList.add("boss");
+  }
 
+  obs.style.width=size+"px";
+  obs.style.height=size+"px";
+  obs.style.right="-60px";
   game.appendChild(obs);
 
-  let move = setInterval(() => {
-    if (!gameRunning || gameOver) return;
+  let move=setInterval(()=>{
+    if(gameOver) return;
 
-    let right = parseInt(getComputedStyle(obs).right);
-    obs.style.right = right + speed + "px";
+    let right=parseInt(getComputedStyle(obs).right);
+    obs.style.right=right+speed+"px";
 
-    const dinoRect = dino.getBoundingClientRect();
-    const obsRect = obs.getBoundingClientRect();
+    const d=dino.getBoundingClientRect();
+    const o=obs.getBoundingClientRect();
 
-    if (
-      !gameOver &&
-      dinoRect.left < obsRect.right &&
-      dinoRect.right > obsRect.left &&
-      dinoRect.bottom > obsRect.top
-    ) {
+    if(d.left<o.right && d.right>o.left && d.bottom>o.top){
       triggerGameOver(obs);
     }
 
-    if (right > window.innerWidth) {
-      obs.remove();
-      clearInterval(move);
+    if(right>window.innerWidth){
+      obs.remove(); clearInterval(move);
     }
 
-  }, 20);
+  },20);
 
   intervals.push(move);
-
-  let t = setTimeout(spawnObstacle, Math.random()*2000+1000);
-  timeouts.push(t);
+  timeouts.push(setTimeout(spawnObstacle,1500));
 }
 
 /* CLOUD */
-function spawnCloud() {
-  if (!gameRunning) return;
+function spawnCloud(){
+  const c=document.createElement("div");
+  c.classList.add("cloud");
+  c.style.bottom=(Math.random()*120+100)+"px";
+  c.style.right="-100px";
+  game.appendChild(c);
 
-  const cloud = document.createElement("div");
-  cloud.classList.add("cloud");
-
-  cloud.style.bottom = (Math.random()*120+100)+"px";
-  cloud.style.right = "-100px";
-
-  game.appendChild(cloud);
-
-  let move = setInterval(()=>{
-    let right = parseInt(getComputedStyle(cloud).right);
-    cloud.style.right = right + 2 + "px";
-
-    if(right > window.innerWidth){
-      cloud.remove();
-      clearInterval(move);
-    }
+  let move=setInterval(()=>{
+    let r=parseInt(getComputedStyle(c).right);
+    c.style.right=r+2+"px";
+    if(r>window.innerWidth){ c.remove(); clearInterval(move); }
   },30);
 
   intervals.push(move);
-
-  let t = setTimeout(spawnCloud, Math.random()*3000+2000);
-  timeouts.push(t);
+  timeouts.push(setTimeout(spawnCloud,3000));
 }
 
 /* GROUND */
 function moveGround(){
-  let g = setInterval(()=>{
+  let pos=0;
+  intervals.push(setInterval(()=>{
     if(!gameRunning) return;
-    groundPos += speed;
-    ground.style.transform = `translateX(-${groundPos}px)`;
-  },20);
-
-  intervals.push(g);
+    pos+=speed;
+    ground.style.transform=`translateX(-${pos}px)`;
+  },20));
 }
 
-/* SCORE */
+/* SCORE + 🌙 DAY/NIGHT */
 function startScore(){
-  let s = setInterval(()=>{
+  intervals.push(setInterval(()=>{
     if(!gameRunning || gameOver) return;
 
     score++;
-    scoreDisplay.textContent = "Score: " + score;
+    scoreDisplay.textContent="Score: "+score;
 
-    if(score % 50 === 0){
-      speed += 0.5;
+    if(score%50===0) speed+=0.5;
+
+    /* 🌙 toggle */
+    if(score%200===0){
+      document.body.classList.toggle("night");
+      document.body.classList.toggle("day");
     }
 
-  },100);
-
-  intervals.push(s);
+  },100));
 }
 
-/* EXPLOSION */
+/* 💥 */
 function explode(obs){
-  if(explosionTriggered) return;
-  explosionTriggered = true;
-
-  const boom = document.createElement("div");
+  const boom=document.createElement("div");
   boom.classList.add("explosion");
 
-  const rect = obs.getBoundingClientRect();
-  const gameRect = game.getBoundingClientRect();
-  const boomSize = 350;
+  const r=obs.getBoundingClientRect();
+  const g=game.getBoundingClientRect();
 
-  boom.style.left = (rect.left - gameRect.left + rect.width/2 - boomSize/2) + "px";
-  boom.style.top = (rect.top - gameRect.top + rect.height/2 - boomSize/2) + "px";
+  boom.style.left=(r.left-g.left)+"px";
+  boom.style.top=(r.top-g.top)+"px";
 
   game.appendChild(boom);
+  boomSound.play();
 
   game.classList.add("shake");
   setTimeout(()=>game.classList.remove("shake"),400);
@@ -351,22 +311,19 @@ function explode(obs){
 function triggerGameOver(obs){
   if(gameOver) return;
 
-  gameOver = true;
-  gameRunning = false;
+  gameOver=true;
+  gameRunning=false;
 
   explode(obs);
 
-  intervals.forEach(clearInterval);
-  timeouts.forEach(clearTimeout);
-  intervals = [];
-  timeouts = [];
+  /* 💾 SAVE HIGH SCORE */
+  if(score>highScore){
+    localStorage.setItem("ghostHigh", score);
+  }
 
-  velocity = 0;
-
-  menu.style.display = "block";
+  document.getElementById("menu").style.display="block";
 }
 
 </script>
-
 </body>
 </html>
