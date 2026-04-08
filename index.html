@@ -23,7 +23,7 @@ body.night {
   margin-bottom: 10px;
 }
 
-/* GAME AREA */
+/* GAME */
 #game {
   position: relative;
   width: 100%;
@@ -44,6 +44,7 @@ body.night #game {
   width: 70px;
   height: 70px;
   background: url('images/ghost.png') no-repeat center/contain;
+  z-index: 2;
 }
 
 /* 🌵 CACTUS */
@@ -52,6 +53,7 @@ body.night #game {
   bottom: 20px;
   right: -60px;
   background: url('images/cactus.png') no-repeat center/contain;
+  z-index: 2;
 }
 
 /* ☁️ CLOUD */
@@ -61,6 +63,7 @@ body.night #game {
   height: 50px;
   background: url('images/cloud.png') no-repeat center/contain;
   opacity: 0.8;
+  z-index: 1;
 }
 
 /* 🌵 GROUND */
@@ -76,6 +79,7 @@ body.night #game {
     transparent 20px,
     transparent 40px
   );
+  z-index: 1;
 }
 
 body.night #ground {
@@ -88,18 +92,21 @@ body.night #ground {
   );
 }
 
-/* 💥 EXPLOSION */
+/* 💥 EXPLOSION (FIXED) */
 .explosion {
   position: absolute;
   width: 80px;
   height: 80px;
   background: url('images/explosion.gif') no-repeat center/contain;
+  z-index: 999; /* ensures visibility */
+  pointer-events: none;
 }
 
 /* SCORE */
 #score, #highScore {
   position: absolute;
   right: 20px;
+  z-index: 3;
 }
 
 #score { top: 10px; }
@@ -366,17 +373,20 @@ function startScore() {
   }, 100);
 }
 
-/* EXPLOSION */
+/* 💥 EXPLOSION FIXED */
 function explode() {
   const boom = document.createElement("div");
   boom.classList.add("explosion");
 
-  boom.style.left = "50px";
+  const dinoRect = dino.getBoundingClientRect();
+  const gameRect = game.getBoundingClientRect();
+
+  boom.style.left = (dinoRect.left - gameRect.left) + "px";
   boom.style.bottom = (20 + position) + "px";
 
   game.appendChild(boom);
 
-  setTimeout(() => boom.remove(), 300);
+  setTimeout(() => boom.remove(), 400);
 }
 
 /* GAME OVER */
