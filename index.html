@@ -48,14 +48,6 @@ body {
   background: url('images/cactus.png') no-repeat center/contain;
 }
 
-/* ☁️ */
-.cloud {
-  position: absolute;
-  width: 100px;
-  height: 50px;
-  background: url('images/cloud.png') no-repeat center/contain;
-}
-
 /* 🌵 GROUND */
 #ground {
   position: absolute;
@@ -122,33 +114,16 @@ button {
 </div>
 
 <script>
-/* 🚀 IMAGE PRELOAD (BEST METHOD) */
-const images = [
-  "images/ghost.png",
-  "images/cactus.png",
-  "images/cloud.png",
-  "images/explosion.gif",
-  "images/desert.jpg"
-];
-
-function preloadImages(list) {
-  list.forEach(src => {
-    const img = new Image();
-    img.src = src;
-  });
-}
-
-preloadImages(images);
-
-/* GAME ELEMENTS */
 const game = document.getElementById("game");
 const dino = document.getElementById("dino");
 const ground = document.getElementById("ground");
 const scoreDisplay = document.getElementById("score");
 const menu = document.getElementById("menu");
 
+/* STATE */
 let gameRunning = false;
 let gameOver = false;
+let explosionTriggered = false;
 
 let position = 0;
 let velocity = 0;
@@ -192,9 +167,15 @@ function resetGame() {
   jumpCount = 0;
   score = 0;
   speed = 4;
+  groundPos = 0;
+
+  gameRunning = false;
+  gameOver = false;
+  explosionTriggered = false;
 
   dino.style.bottom = "20px";
   scoreDisplay.innerHTML = "Score: 0";
+  ground.style.transform = "translateX(0)";
 }
 
 /* LOOP */
@@ -217,6 +198,8 @@ function gameLoop() {
 
 /* JUMP */
 document.addEventListener("keydown", e => {
+  if (!gameRunning || gameOver) return;
+
   if (e.code === "Space" && jumpCount < 2) {
     velocity = 15;
     jumpCount++;
@@ -240,7 +223,7 @@ function spawnObstacle() {
   lastObstacle = obs;
 
   let move = setInterval(() => {
-    if (gameOver) return;
+    if (!gameRunning || gameOver) return;
 
     let right = parseInt(getComputedStyle(obs).right);
     obs.style.right = right + speed + "px";
@@ -250,8 +233,12 @@ function spawnObstacle() {
       right < window.innerWidth - 40 &&
       position < size
     ) {
-      explode();
-      gameRunning = false;
+      triggerGameOver();
+    }
+
+    if (right > window.innerWidth) {
+      obs.remove();
+      clearInterval(move);
     }
 
   }, 20);
@@ -266,6 +253,7 @@ function spawnObstacle() {
 function moveGround() {
   let groundInterval = setInterval(() => {
     if (!gameRunning) return;
+
     groundPos += speed;
     ground.style.transform = `translateX(-${groundPos}px)`;
   }, 20);
@@ -277,6 +265,7 @@ function moveGround() {
 function startScore() {
   let scoreInt = setInterval(() => {
     if (!gameRunning) return;
+
     score++;
     scoreDisplay.innerHTML = "Score: " + score;
   }, 100);
@@ -284,8 +273,11 @@ function startScore() {
   intervals.push(scoreInt);
 }
 
-/* 💥 EXPLOSION */
+/* 💥 EXPLOSION (FIXED SINGLE TRIGGER) */
 function explode() {
+  if (explosionTriggered) return;
+  explosionTriggered = true;
+
   const boom = document.createElement("div");
   boom.classList.add("explosion");
 
@@ -302,6 +294,22 @@ function explode() {
   game.classList.add("shake");
   setTimeout(() => game.classList.remove("shake"), 400);
 }
+
+/* GAME OVER */
+function triggerGameOver() {
+  if (gameOver) return;
+
+  gameOver = true;
+  gameRunning = false;
+
+  explode();
+
+  intervals.forEach(clearInterval);
+  timeouts.forEach(clearTimeout);
+
+  menu.style.display = "block";
+}
+
 </script>
 
 </body>
