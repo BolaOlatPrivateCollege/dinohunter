@@ -2,62 +2,83 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Dino Game</title>
+<title>Advanced Dino Game</title>
+
 <style>
-  body {
-    margin: 0;
-    background: #f7f7f7;
-    overflow: hidden;
-    font-family: Arial, sans-serif;
-  }
+body {
+  margin: 0;
+  background: #f7f7f7;
+  overflow: hidden;
+  font-family: Arial, sans-serif;
+}
 
-  #game {
-    position: relative;
-    width: 100%;
-    height: 200px;
-    border-bottom: 3px solid black;
-  }
+body.night {
+  background: #111;
+  color: white;
+}
 
-  #dino {
-    position: absolute;
-    bottom: 0;
-    left: 50px;
-    width: 40px;
-    height: 40px;
-    background: black;
-  }
+#game {
+  position: relative;
+  width: 100%;
+  height: 200px;
+  border-bottom: 3px solid black;
+}
 
-  .jump {
-    animation: jump 0.5s linear;
-  }
+body.night #game {
+  border-color: white;
+}
 
-  @keyframes jump {
-    0% { bottom: 0; }
-    50% { bottom: 80px; }
-    100% { bottom: 0; }
-  }
+#dino {
+  position: absolute;
+  bottom: 0;
+  left: 50px;
+  width: 40px;
+  height: 40px;
+  background: black;
+}
 
-  #cactus {
-    position: absolute;
-    bottom: 0;
-    right: -20px;
-    width: 20px;
-    height: 40px;
-    background: green;
-    animation: move 2s linear infinite;
-  }
+body.night #dino {
+  background: white;
+}
 
-  @keyframes move {
-    0% { right: -20px; }
-    100% { right: 100%; }
-  }
+.jump {
+  animation: jump 0.5s linear;
+}
 
-  #score {
-    position: absolute;
-    top: 10px;
-    right: 20px;
-    font-size: 18px;
-  }
+@keyframes jump {
+  0% { bottom: 0; }
+  50% { bottom: 80px; }
+  100% { bottom: 0; }
+}
+
+.obstacle {
+  position: absolute;
+  bottom: 0;
+  right: -50px;
+  background: green;
+}
+
+.bird {
+  position: absolute;
+  width: 40px;
+  height: 20px;
+  background: red;
+}
+
+body.night .obstacle {
+  background: lightgreen;
+}
+
+body.night .bird {
+  background: orange;
+}
+
+#score {
+  position: absolute;
+  top: 10px;
+  right: 20px;
+  font-size: 18px;
+}
 </style>
 </head>
 
@@ -65,41 +86,123 @@
 
 <div id="game">
   <div id="dino"></div>
-  <div id="cactus"></div>
   <div id="score">0</div>
 </div>
 
 <script>
-  const dino = document.getElementById("dino");
-  const cactus = document.getElementById("cactus");
-  const scoreDisplay = document.getElementById("score");
+const game = document.getElementById("game");
+const dino = document.getElementById("dino");
+const scoreDisplay = document.getElementById("score");
 
-  let score = 0;
-  let isAlive = true;
+let score = 0;
+let gameRunning = true;
 
-  // Jump
-  document.addEventListener("keydown", function (event) {
-    if (event.code === "Space") {
-      if (!dino.classList.contains("jump")) {
-        dino.classList.add("jump");
-        setTimeout(() => dino.classList.remove("jump"), 500);
-      }
-    }
-  });
+// Jump
+document.addEventListener("keydown", (e) => {
+  if (e.code === "Space" && !dino.classList.contains("jump")) {
+    dino.classList.add("jump");
+    setTimeout(() => dino.classList.remove("jump"), 500);
+  }
+});
 
-  // Collision + Score
-  let checkDead = setInterval(function () {
+// Create obstacles
+function createObstacle() {
+  if (!gameRunning) return;
+
+  const obstacle = document.createElement("div");
+  obstacle.classList.add("obstacle");
+
+  let height = Math.random() * 30 + 30;
+  let width = Math.random() * 20 + 20;
+
+  obstacle.style.height = height + "px";
+  obstacle.style.width = width + "px";
+  obstacle.style.right = "-50px";
+
+  game.appendChild(obstacle);
+
+  let move = setInterval(() => {
+    let obstacleRight = parseInt(window.getComputedStyle(obstacle).getPropertyValue("right"));
+    obstacle.style.right = obstacleRight + 5 + "px";
+
     let dinoTop = parseInt(window.getComputedStyle(dino).getPropertyValue("bottom"));
-    let cactusLeft = parseInt(window.getComputedStyle(cactus).getPropertyValue("left"));
+    let dinoLeft = 50;
 
-    if (cactusLeft < 90 && cactusLeft > 50 && dinoTop < 40) {
-      alert("Game Over! Score: " + score);
-      score = 0;
-    } else {
-      score++;
-      scoreDisplay.innerHTML = score;
+    if (obstacleRight > window.innerWidth - dinoLeft - 40 &&
+        obstacleRight < window.innerWidth - dinoLeft &&
+        dinoTop < height) {
+      gameOver();
+      clearInterval(move);
     }
-  }, 100);
+
+    if (obstacleRight > window.innerWidth) {
+      obstacle.remove();
+      clearInterval(move);
+    }
+  }, 20);
+
+  setTimeout(createObstacle, Math.random() * 2000 + 1000);
+}
+
+// Create birds
+function createBird() {
+  if (!gameRunning) return;
+
+  const bird = document.createElement("div");
+  bird.classList.add("bird");
+
+  let height = Math.random() * 60 + 40;
+  bird.style.bottom = height + "px";
+  bird.style.right = "-40px";
+
+  game.appendChild(bird);
+
+  let move = setInterval(() => {
+    let birdRight = parseInt(window.getComputedStyle(bird).getPropertyValue("right"));
+    bird.style.right = birdRight + 6 + "px";
+
+    let dinoTop = parseInt(window.getComputedStyle(dino).getPropertyValue("bottom"));
+
+    if (birdRight > window.innerWidth - 90 &&
+        birdRight < window.innerWidth - 50 &&
+        dinoTop + 40 > height &&
+        dinoTop < height + 20) {
+      gameOver();
+      clearInterval(move);
+    }
+
+    if (birdRight > window.innerWidth) {
+      bird.remove();
+      clearInterval(move);
+    }
+  }, 20);
+
+  setTimeout(createBird, Math.random() * 4000 + 2000);
+}
+
+// Score + night mode
+let scoreInterval = setInterval(() => {
+  if (!gameRunning) return;
+
+  score++;
+  scoreDisplay.innerHTML = score;
+
+  if (score % 500 === 0) {
+    document.body.classList.toggle("night");
+  }
+}, 100);
+
+// Game over
+function gameOver() {
+  gameRunning = false;
+  alert("Game Over! Score: " + score);
+  location.reload();
+}
+
+// Start game
+createObstacle();
+createBird();
+
 </script>
 
 </body>
