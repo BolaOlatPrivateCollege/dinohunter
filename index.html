@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Ghost Runner Ultimate</title>
+<title>Ghost Runner</title>
 
 <style>
 body {
@@ -28,7 +28,7 @@ body.night #game {
   border-color: white;
 }
 
-/* 👻 Ghost with floating animation */
+/* 👻 BIGGER GHOST */
 #dino {
   position: absolute;
   bottom: 0;
@@ -36,24 +36,19 @@ body.night #game {
   width: 70px;
   height: 70px;
   background: url('images/ghost.png') no-repeat center/contain;
-  animation: float 2s infinite ease-in-out;
 }
 
-@keyframes float {
-  0% { transform: translateY(0px); }
-  50% { transform: translateY(-5px); }
-  100% { transform: translateY(0px); }
-}
-
-/* 🌵 cactus */
+/* 🌵 CACTUS */
 .obstacle {
   position: absolute;
   bottom: 0;
   right: -60px;
+  width: 40px;
+  height: 60px;
   background: url('images/cactus.png') no-repeat center/contain;
 }
 
-/* ☁️ cloud */
+/* ☁️ BIGGER CLOUD */
 .cloud {
   position: absolute;
   width: 100px;
@@ -79,7 +74,7 @@ body.night #game {
 
 #menu {
   position: absolute;
-  top: 35%;
+  top: 40%;
   width: 100%;
   text-align: center;
 }
@@ -87,6 +82,7 @@ body.night #game {
 button {
   padding: 10px 20px;
   margin: 5px;
+  font-size: 16px;
   cursor: pointer;
 }
 </style>
@@ -97,7 +93,8 @@ button {
 <div id="menu">
   <h1>👻 Ghost Runner</h1>
   <button onclick="startGame()">Start</button>
-  <button onclick="resetGame()">Restart</button>
+  <button onclick="restartGame()">Restart</button>
+  <button onclick="togglePause()">Pause / Resume</button>
 </div>
 
 <div id="game">
@@ -106,6 +103,9 @@ button {
   <div id="highScore">High: 0</div>
 </div>
 
+<audio id="jumpSound" src="https://actions.google.com/sounds/v1/cartoon/wood_plank_flicks.ogg"></audio>
+<audio id="hitSound" src="https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg"></audio>
+
 <script>
 const game = document.getElementById("game");
 const dino = document.getElementById("dino");
@@ -113,37 +113,21 @@ const scoreDisplay = document.getElementById("score");
 const highScoreDisplay = document.getElementById("highScore");
 const menu = document.getElementById("menu");
 
+const jumpSound = document.getElementById("jumpSound");
+const hitSound = document.getElementById("hitSound");
+
 /* ===== STATE ===== */
-let score, speed, gameRunning, paused, position, velocity, jumpCount;
-let intervals = [];
-let objects = [];
+let score = 0;
+let speed = 4;
+let gameRunning = false;
+let paused = false;
+let gameOverState = false;
+
+let intervals = []; // track all intervals
 
 /* ===== HIGH SCORE ===== */
 let highScore = localStorage.getItem("dinoHighScore") || 0;
 highScoreDisplay.innerHTML = "High: " + highScore;
-
-/* ===== RESET SYSTEM (NO RELOAD) ===== */
-function resetGame() {
-  // clear objects
-  objects.forEach(obj => obj.remove());
-  objects = [];
-
-  intervals.forEach(i => clearInterval(i));
-  intervals = [];
-
-  score = 0;
-  speed = 4;
-  gameRunning = false;
-  paused = false;
-  position = 0;
-  velocity = 0;
-  jumpCount = 0;
-
-  dino.style.bottom = "0px";
-  scoreDisplay.innerHTML = "Score: 0";
-
-  menu.style.display = "block";
-}
 
 /* ===== START ===== */
 function startGame() {
@@ -151,35 +135,54 @@ function startGame() {
 
   menu.style.display = "none";
   gameRunning = true;
+  gameOverState = false;
 
   loop();
   createObstacle();
   createCloud();
 }
 
+function restartGame() {
+  location.reload();
+}
+
+function togglePause() {
+  if (!gameRunning || gameOverState) return;
+  paused = !paused;
+}
+
 /* ===== PHYSICS ===== */
+let velocity = 0;
+let gravity = 1;
+let position = 0;
+let jumpCount = 0;
+
 function loop() {
   if (!gameRunning) return;
 
-  velocity -= 1;
-  position += velocity;
+  if (!paused) {
+    velocity -= gravity;
+    position += velocity;
 
-  if (position <= 0) {
-    position = 0;
-    velocity = 0;
-    jumpCount = 0;
+    if (position <= 0) {
+      position = 0;
+      velocity = 0;
+      jumpCount = 0;
+    }
+
+    dino.style.bottom = position + "px";
   }
-
-  dino.style.bottom = position + "px";
 
   requestAnimationFrame(loop);
 }
 
 function jump() {
-  if (!gameRunning) return;
+  if (!gameRunning || paused || gameOverState) return;
+
   if (jumpCount < 2) {
     velocity = 15;
     jumpCount++;
+    jumpSound.play();
   }
 }
 
@@ -188,44 +191,42 @@ document.addEventListener("keydown", e => {
 });
 document.addEventListener("touchstart", jump);
 
-/* ===== MULTI CACTUS ===== */
+/* ===== OBSTACLES ===== */
 function createObstacle() {
   if (!gameRunning) return;
 
-  let count = Math.random() < 0.4 ? 2 : 1;
+  const obstacle = document.createElement("div");
+  obstacle.classList.add("obstacle");
 
-  for (let i = 0; i < count; i++) {
-    const obstacle = document.createElement("div");
-    obstacle.classList.add("obstacle");
+  let scale = Math.random() * 0.5 + 0.8;
+  obstacle.style.transform = `scale(${scale})`;
 
-    let size = Math.random() * 20 + 40;
+  obstacle.style.right = "-60px";
+  game.appendChild(obstacle);
 
-    obstacle.style.width = size + "px";
-    obstacle.style.height = size + "px";
-    obstacle.style.right = (-60 - i * 50) + "px";
+  let move = setInterval(() => {
+    if (paused || gameOverState) return;
 
-    game.appendChild(obstacle);
-    objects.push(obstacle);
+    let right = parseInt(getComputedStyle(obstacle).right);
+    obstacle.style.right = right + speed + "px";
 
-    let move = setInterval(() => {
-      let right = parseInt(getComputedStyle(obstacle).right);
-      obstacle.style.right = right + speed + "px";
+    // 💥 COLLISION (STRICT STOP)
+    if (right > window.innerWidth - 120 &&
+        right < window.innerWidth - 40 &&
+        position < 60) {
 
-      if (right > window.innerWidth - 120 &&
-          right < window.innerWidth - 40 &&
-          position < size) {
-        explode();
-        endGame();
-      }
+      explode();
+      endGame();
+      clearInterval(move);
+    }
 
-      if (right > window.innerWidth) {
-        obstacle.remove();
-        clearInterval(move);
-      }
-    }, 20);
+    if (right > window.innerWidth) {
+      obstacle.remove();
+      clearInterval(move);
+    }
+  }, 20);
 
-    intervals.push(move);
-  }
+  intervals.push(move);
 
   setTimeout(createObstacle, Math.random() * 2000 + 1000);
 }
@@ -241,9 +242,10 @@ function createCloud() {
   cloud.style.right = "-100px";
 
   game.appendChild(cloud);
-  objects.push(cloud);
 
   let move = setInterval(() => {
+    if (paused || gameOverState) return;
+
     let right = parseInt(getComputedStyle(cloud).right);
     cloud.style.right = right + 2 + "px";
 
@@ -259,8 +261,8 @@ function createCloud() {
 }
 
 /* ===== SCORE ===== */
-setInterval(() => {
-  if (!gameRunning) return;
+let scoreLoop = setInterval(() => {
+  if (!gameRunning || paused || gameOverState) return;
 
   score++;
   scoreDisplay.innerHTML = "Score: " + score;
@@ -286,10 +288,13 @@ function explode() {
   setTimeout(() => boom.remove(), 500);
 }
 
-/* ===== END GAME ===== */
+/* ===== END GAME (NO RELOAD) ===== */
 function endGame() {
   gameRunning = false;
+  gameOverState = true;
+  hitSound.play();
 
+  // stop all intervals
   intervals.forEach(i => clearInterval(i));
 
   if (score > highScore) {
@@ -298,9 +303,6 @@ function endGame() {
 
   menu.style.display = "block";
 }
-
-/* INIT */
-resetGame();
 </script>
 
 </body>
