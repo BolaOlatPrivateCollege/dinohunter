@@ -9,62 +9,40 @@ body {
   margin: 0;
   overflow: hidden;
   font-family: Arial;
-  transition: background 1s;
+  transition: background 1s ease;
   background: linear-gradient(to top, #87CEEB, #cfefff);
 }
 
 body.night {
-  background: linear-gradient(to top, #0b1a2a, #000814);
   color: white;
+  background: linear-gradient(to top, #0b1a2a, #000814);
 }
 
-/* SKY OBJECTS */
-#sun, #moon {
-  position: absolute;
-  width: 60px;
-  height: 60px;
-  border-radius: 50%;
-  top: 50px;
-  left: -80px;
-}
-
-#sun {
-  background: yellow;
-  box-shadow: 0 0 40px yellow;
-}
-
-#moon {
-  background: #ddd;
-  box-shadow: 0 0 20px white;
-  display: none;
-}
-
-/* STARS */
-.star {
-  position: absolute;
-  width: 3px;
-  height: 3px;
-  background: white;
-  opacity: 0;
-}
-
-/* RAIN */
-.rain {
-  position: absolute;
-  width: 2px;
-  height: 10px;
-  background: lightblue;
-  opacity: 0.6;
-}
-
-/* FOG */
-#fog {
+/* WEATHER LAYERS */
+#rain, #fog {
   position: absolute;
   width: 100%;
   height: 100%;
-  background: rgba(255,255,255,0.2);
   pointer-events: none;
-  display: none;
+}
+
+#rain {
+  background-image: linear-gradient(rgba(255,255,255,0.4) 2px, transparent 2px);
+  background-size: 2px 20px;
+  animation: rain 0.3s linear infinite;
+  opacity: 0;
+}
+
+@keyframes rain {
+  from { background-position: 0 0; }
+  to { background-position: 0 20px; }
+}
+
+#fog {
+  background: rgba(255,255,255,0.2);
+  backdrop-filter: blur(5px);
+  opacity: 0;
+  transition: opacity 1s;
 }
 
 /* GAME */
@@ -72,6 +50,7 @@ body.night {
   position: relative;
   width: 100%;
   height: 250px;
+  border-bottom: 3px solid black;
   overflow: hidden;
 }
 
@@ -82,6 +61,11 @@ body.night {
   width: 70px;
   height: 70px;
   background: url('images/ghost.png') no-repeat center/contain;
+  animation: float 2s ease-in-out infinite;
+}
+
+@keyframes float {
+  50% { transform: translateY(-8px); }
 }
 
 .obstacle {
@@ -96,6 +80,7 @@ body.night {
   width: 100px;
   height: 50px;
   background: url('images/cloud.png') no-repeat center/contain;
+  opacity: 0.8;
 }
 
 #ground {
@@ -130,117 +115,186 @@ button {
 
 <body>
 
-<div id="sun"></div>
-<div id="moon"></div>
-<div id="fog"></div>
-
 <div id="menu">
   <h1>👻 Ghost Runner</h1>
   <button onclick="startGame()">Start</button>
 </div>
 
 <div id="game">
+  <div id="rain"></div>
+  <div id="fog"></div>
+
   <div id="dino"></div>
   <div id="ground"></div>
+
   <div id="score">Score: 0</div>
   <div id="highScore">High: 0</div>
 </div>
 
+<audio id="jumpSound" src="https://actions.google.com/sounds/v1/cartoon/wood_plank_flicks.ogg"></audio>
+<audio id="hitSound" src="https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg"></audio>
+
 <script>
+
+/* ELEMENTS */
 const game = document.getElementById("game");
 const dino = document.getElementById("dino");
 const ground = document.getElementById("ground");
-const scoreDisplay = document.getElementById("score");
-const highScoreDisplay = document.getElementById("highScore");
-const sun = document.getElementById("sun");
-const moon = document.getElementById("moon");
+const rain = document.getElementById("rain");
 const fog = document.getElementById("fog");
 
-let gameRunning=false, gameOver=false;
-let score=0, speed=4;
-let position=0, velocity=0, jumpCount=0;
-let intervals=[], timeouts=[], groundPos=0;
+const scoreDisplay = document.getElementById("score");
+const highScoreDisplay = document.getElementById("highScore");
+const menu = document.getElementById("menu");
+
+const jumpSound = document.getElementById("jumpSound");
+const hitSound = document.getElementById("hitSound");
+
+/* STATE */
+let gameRunning = false;
+let gameOver = false;
+let score = 0;
+let speed = 4;
+
+let position = 0;
+let velocity = 0;
+let jumpCount = 0;
+
+let intervals = [];
+let timeouts = [];
+let groundPos = 0;
+
+/* WEATHER */
+let currentWeather = "clear";
 
 /* HIGH SCORE */
 let highScore = localStorage.getItem("dinoHighScore") || 0;
-highScoreDisplay.textContent="High: "+highScore;
+highScoreDisplay.textContent = "High: " + highScore;
 
 /* START */
-function startGame(){
+function startGame() {
   resetGame();
-  gameRunning=true;
-  document.getElementById("menu").style.display="none";
+  gameRunning = true;
+  menu.style.display = "none";
 
   spawnObstacle();
   spawnCloud();
   moveGround();
   startScore();
-  moveSky();
+  weatherSystem();
+
   gameLoop();
 }
 
 /* RESET */
-function resetGame(){
+function resetGame() {
   intervals.forEach(clearInterval);
   timeouts.forEach(clearTimeout);
 
-  document.querySelectorAll(".obstacle,.cloud,.rain,.star").forEach(e=>e.remove());
+  document.querySelectorAll(".obstacle,.cloud,.explosion").forEach(e=>e.remove());
 
-  score=0; speed=4; position=0; velocity=0;
-  gameOver=false;
+  score = 0;
+  speed = 4;
+  position = 0;
+  velocity = 0;
+  jumpCount = 0;
+  groundPos = 0;
 
-  scoreDisplay.textContent="Score: 0";
-  ground.style.transform="translateX(0)";
+  gameRunning = false;
+  gameOver = false;
+
+  rain.style.opacity = 0;
+  fog.style.opacity = 0;
+
+  scoreDisplay.textContent = "Score: 0";
+}
+
+/* WEATHER SYSTEM */
+function weatherSystem(){
+  intervals.push(setInterval(()=>{
+    if(!gameRunning) return;
+
+    const rand = Math.random();
+
+    if(rand < 0.4){
+      currentWeather = "clear";
+      rain.style.opacity = 0;
+      fog.style.opacity = 0;
+    }
+    else if(rand < 0.7){
+      currentWeather = "rain";
+      rain.style.opacity = 1;
+      fog.style.opacity = 0;
+    }
+    else{
+      currentWeather = "fog";
+      rain.style.opacity = 0;
+      fog.style.opacity = 1;
+    }
+
+  }, 5000));
 }
 
 /* LOOP */
 function gameLoop(){
   if(!gameRunning) return;
 
-  velocity-=1;
-  position+=velocity;
+  velocity -= 1;
+  position += velocity;
 
-  if(position<=0){ position=0; velocity=0; jumpCount=0; }
+  if(position <= 0){
+    position = 0;
+    velocity = 0;
+    jumpCount = 0;
+  }
 
-  dino.style.bottom=(20+position)+"px";
+  dino.style.bottom = (20 + position) + "px";
   requestAnimationFrame(gameLoop);
 }
 
 /* JUMP */
 function jump(){
   if(!gameRunning || gameOver) return;
-  if(jumpCount<2){
-    velocity=15;
+
+  if(jumpCount < 2){
+    velocity = 15;
     jumpCount++;
+
+    jumpSound.currentTime = 0;
+    jumpSound.play();
   }
 }
-document.addEventListener("keydown", e=>{ if(e.code==="Space") jump(); });
+
+document.addEventListener("keydown", e=>{
+  if(e.code==="Space") jump();
+});
 document.addEventListener("touchstart", jump);
 
 /* OBSTACLE */
 function spawnObstacle(){
   if(!gameRunning) return;
 
-  const obs=document.createElement("div");
+  const obs = document.createElement("div");
   obs.classList.add("obstacle");
 
-  let size=Math.random()*20+40;
-  obs.style.width=size+"px";
-  obs.style.height=size+"px";
+  let size = Math.random()*20 + 40;
+  obs.style.width = size+"px";
+  obs.style.height = size+"px";
+  obs.style.right = "-60px";
 
   game.appendChild(obs);
 
-  let move=setInterval(()=>{
+  let move = setInterval(()=>{
     if(gameOver) return;
 
-    let right=parseInt(getComputedStyle(obs).right||-60);
-    obs.style.right=(right+speed)+"px";
+    let right = parseInt(getComputedStyle(obs).right);
+    obs.style.right = right + speed + "px";
 
-    if(right>window.innerWidth-100 && position<size){
+    if(right > window.innerWidth - 120 && right < window.innerWidth - 40 && position < size){
       triggerGameOver();
     }
 
-    if(right>window.innerWidth){
+    if(right > window.innerWidth){
       obs.remove();
       clearInterval(move);
     }
@@ -248,134 +302,71 @@ function spawnObstacle(){
   },20);
 
   intervals.push(move);
-  timeouts.push(setTimeout(spawnObstacle,1500));
+  timeouts.push(setTimeout(spawnObstacle, Math.random()*2000+1000));
 }
 
 /* CLOUD */
 function spawnCloud(){
-  const c=document.createElement("div");
-  c.classList.add("cloud");
-  c.style.bottom=(Math.random()*120+100)+"px";
-  game.appendChild(c);
+  if(!gameRunning) return;
 
-  let move=setInterval(()=>{
-    let r=parseInt(getComputedStyle(c).right||-100);
-    c.style.right=(r+2)+"px";
-    if(r>window.innerWidth){ c.remove(); clearInterval(move); }
+  const cloud = document.createElement("div");
+  cloud.classList.add("cloud");
+
+  cloud.style.bottom = (Math.random()*120+100)+"px";
+  cloud.style.right = "-100px";
+
+  game.appendChild(cloud);
+
+  let move = setInterval(()=>{
+    let right = parseInt(getComputedStyle(cloud).right);
+    cloud.style.right = right + 2 + "px";
+
+    if(right > window.innerWidth){
+      cloud.remove();
+      clearInterval(move);
+    }
   },30);
 
   intervals.push(move);
-  timeouts.push(setTimeout(spawnCloud,3000));
+  timeouts.push(setTimeout(spawnCloud, Math.random()*3000+2000));
 }
 
 /* GROUND */
 function moveGround(){
   intervals.push(setInterval(()=>{
     if(!gameRunning) return;
-    groundPos+=speed;
-    ground.style.transform=`translateX(-${groundPos}px)`;
+    groundPos += speed;
+    ground.style.transform = `translateX(-${groundPos}px)`;
   },20));
 }
 
-/* SCORE + SKY EVENTS */
+/* SCORE */
 function startScore(){
   intervals.push(setInterval(()=>{
     if(!gameRunning) return;
 
     score++;
-    scoreDisplay.textContent="Score: "+score;
+    scoreDisplay.textContent = "Score: " + score;
 
-    if(score%50===0) speed+=0.5;
+    speed = Math.min(12, 4 + score/200);
 
-    /* DAY/NIGHT */
-    if(score%400===0){
+    if(score % 500 === 0){
       document.body.classList.toggle("night");
-      toggleSky();
-      spawnStars();
-    }
-
-    /* WEATHER */
-    if(score%200===0){
-      startRain();
-      setTimeout(stopRain,5000);
-    }
-
-    if(score%300===0){
-      fog.style.display="block";
-      setTimeout(()=>fog.style.display="none",4000);
     }
 
   },100));
 }
 
-/* ☀️🌙 SKY MOVEMENT */
-function moveSky(){
-  let pos=-80;
-  intervals.push(setInterval(()=>{
-    pos+=1;
-    sun.style.left=pos+"px";
-    moon.style.left=pos+"px";
-    if(pos>window.innerWidth) pos=-80;
-  },50));
-}
-
-function toggleSky(){
-  if(document.body.classList.contains("night")){
-    sun.style.display="none";
-    moon.style.display="block";
-  } else {
-    sun.style.display="block";
-    moon.style.display="none";
-    document.querySelectorAll(".star").forEach(s=>s.remove());
-  }
-}
-
-/* ⭐ STARS */
-function spawnStars(){
-  if(!document.body.classList.contains("night")) return;
-
-  for(let i=0;i<50;i++){
-    const star=document.createElement("div");
-    star.classList.add("star");
-    star.style.top=Math.random()*200+"px";
-    star.style.left=Math.random()*window.innerWidth+"px";
-    star.style.opacity=1;
-    document.body.appendChild(star);
-  }
-}
-
-/* 🌧️ RAIN */
-function startRain(){
-  let rainInterval=setInterval(()=>{
-    for(let i=0;i<5;i++){
-      const drop=document.createElement("div");
-      drop.classList.add("rain");
-      drop.style.left=Math.random()*window.innerWidth+"px";
-      drop.style.top="0px";
-      document.body.appendChild(drop);
-
-      let fall=setInterval(()=>{
-        let top=parseInt(drop.style.top);
-        drop.style.top=(top+10)+"px";
-        if(top>300){ drop.remove(); clearInterval(fall); }
-      },20);
-    }
-  },100);
-
-  intervals.push(rainInterval);
-}
-
-function stopRain(){
-  document.querySelectorAll(".rain").forEach(r=>r.remove());
-}
-
-/* 💥 */
+/* EXPLOSION */
 function explode(){
-  const boom=document.createElement("div");
+  const boom = document.createElement("div");
   boom.classList.add("explosion");
-  boom.style.left="50px";
-  boom.style.bottom=(20+position)+"px";
+
+  boom.style.left = "50px";
+  boom.style.bottom = (20 + position) + "px";
+
   game.appendChild(boom);
+
   setTimeout(()=>boom.remove(),300);
 }
 
@@ -383,20 +374,24 @@ function explode(){
 function triggerGameOver(){
   if(gameOver) return;
 
-  gameOver=true;
-  gameRunning=false;
+  gameOver = true;
+  gameRunning = false;
 
   explode();
 
   intervals.forEach(clearInterval);
   timeouts.forEach(clearTimeout);
 
-  if(score>highScore){
+  hitSound.currentTime = 0;
+  hitSound.play();
+
+  if(score > highScore){
     localStorage.setItem("dinoHighScore", score);
   }
 
-  document.getElementById("menu").style.display="block";
+  menu.style.display = "block";
 }
+
 </script>
 </body>
 </html>
