@@ -9,15 +9,16 @@ body {
   margin: 0;
   overflow: hidden;
   font-family: Arial;
-}
-
-/* 🌵 DESERT BACKGROUND */
-body {
   background: url('images/desert.jpg') no-repeat center/cover;
 }
 
-body.night {
-  filter: brightness(0.4);
+/* 🌑 DARK OVERLAY (fixes visibility) */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.3);
+  z-index: 0;
 }
 
 /* MENU */
@@ -25,6 +26,12 @@ body.night {
   text-align: center;
   margin-bottom: 10px;
   color: white;
+  position: relative;
+  z-index: 2;
+}
+
+#menu h1 {
+  text-shadow: 2px 2px 8px black;
 }
 
 /* GAME */
@@ -34,9 +41,10 @@ body.night {
   height: 250px;
   border-bottom: 3px solid black;
   overflow: hidden;
+  z-index: 1;
 }
 
-/* 👻 GHOST */
+/* 👻 */
 #dino {
   position: absolute;
   bottom: 20px;
@@ -47,7 +55,7 @@ body.night {
   z-index: 2;
 }
 
-/* 🌵 CACTUS */
+/* 🌵 */
 .obstacle {
   position: absolute;
   bottom: 20px;
@@ -56,7 +64,7 @@ body.night {
   z-index: 2;
 }
 
-/* ☁️ CLOUD */
+/* ☁️ */
 .cloud {
   position: absolute;
   width: 100px;
@@ -89,17 +97,17 @@ body.night {
   z-index: 999;
 }
 
-/* 📳 SCREEN SHAKE */
+/* 📳 SHAKE */
 .shake {
   animation: shake 0.3s;
 }
 
 @keyframes shake {
-  0% { transform: translate(0, 0); }
-  25% { transform: translate(-10px, 5px); }
-  50% { transform: translate(10px, -5px); }
-  75% { transform: translate(-5px, 5px); }
-  100% { transform: translate(0, 0); }
+  0% { transform: translate(0,0); }
+  25% { transform: translate(-10px,5px); }
+  50% { transform: translate(10px,-5px); }
+  75% { transform: translate(-5px,5px); }
+  100% { transform: translate(0,0); }
 }
 
 /* SCORE */
@@ -107,6 +115,7 @@ body.night {
   position: absolute;
   right: 20px;
   color: white;
+  z-index: 3;
 }
 
 #score { top: 10px; }
@@ -143,9 +152,10 @@ button {
   <div id="highScore">High: 0</div>
 </div>
 
+<!-- 🔊 CINEMATIC SOUND -->
 <audio id="jumpSound" src="https://actions.google.com/sounds/v1/cartoon/wood_plank_flicks.ogg"></audio>
-<audio id="hitSound" src="https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg"></audio>
-<audio id="bgMusic" src="https://actions.google.com/sounds/v1/ambiences/barnyard.ogg" loop></audio>
+<audio id="hitSound" src="https://actions.google.com/sounds/v1/cartoon/explosion.ogg"></audio>
+<audio id="bgMusic" src="https://actions.google.com/sounds/v1/ambiences/desert_wind.ogg" loop></audio>
 
 <script>
 const game = document.getElementById("game");
@@ -162,14 +172,11 @@ const bgMusic = document.getElementById("bgMusic");
 /* STATE */
 let gameRunning = false;
 let gameOver = false;
-
 let score = 0;
 let speed = 4;
-
 let position = 0;
 let velocity = 0;
 let jumpCount = 0;
-
 let intervals = [];
 let timeouts = [];
 let scoreInterval;
@@ -184,7 +191,6 @@ function startGame() {
   if (gameRunning) return;
 
   resetGame();
-
   gameRunning = true;
   menu.style.display = "none";
 
@@ -193,8 +199,9 @@ function startGame() {
   spawnCloud();
   moveGround();
 
+  // 🎵 CINEMATIC AUDIO
+  bgMusic.volume = 0.4;
   bgMusic.currentTime = 0;
-  bgMusic.volume = 0.3;
   bgMusic.play().catch(() => {});
 
   gameLoop();
@@ -224,6 +231,7 @@ function resetGame() {
 
   dino.style.bottom = "20px";
   scoreDisplay.innerHTML = "Score: 0";
+
   ground.style.transform = "translateX(0)";
 
   bgMusic.pause();
@@ -259,6 +267,7 @@ function jump() {
     jumpCount++;
 
     jumpSound.currentTime = 0;
+    jumpSound.volume = 0.6;
     jumpSound.play();
   }
 }
@@ -363,28 +372,19 @@ function startScore() {
     setTimeout(() => scoreDisplay.classList.remove("pop"), 150);
 
     speed = Math.min(12, 4 + score / 200);
-
-    if (score % 500 === 0) {
-      document.body.classList.toggle("night");
-    }
-
   }, 100);
 }
 
-/* 💥 BIG EXPLOSION + SHAKE */
+/* EXPLOSION + SHAKE */
 function explode() {
   const boom = document.createElement("div");
   boom.classList.add("explosion");
 
-  const dinoRect = dino.getBoundingClientRect();
-  const gameRect = game.getBoundingClientRect();
-
-  boom.style.left = (dinoRect.left - gameRect.left - 50) + "px";
+  boom.style.left = "30px";
   boom.style.bottom = (20 + position - 40) + "px";
 
   game.appendChild(boom);
 
-  // SCREEN SHAKE
   game.classList.add("shake");
   setTimeout(() => game.classList.remove("shake"), 300);
 
@@ -407,6 +407,7 @@ function triggerGameOver() {
   bgMusic.pause();
 
   hitSound.currentTime = 0;
+  hitSound.volume = 0.8;
   hitSound.play();
 
   if (score > highScore) {
