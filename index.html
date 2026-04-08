@@ -18,7 +18,7 @@ body.night {
   background: linear-gradient(to top, #0b1a2a, #000814);
 }
 
-/* WEATHER LAYERS */
+/* WEATHER */
 #rain, #fog {
   position: absolute;
   width: 100%;
@@ -91,11 +91,20 @@ body.night {
   background: repeating-linear-gradient(#555 0 20px, transparent 20px 40px);
 }
 
+/* 💥 BIG EXPLOSION */
 .explosion {
   position: absolute;
-  width: 80px;
-  height: 80px;
+  width: 220px;
+  height: 220px;
   background: url('images/explosion.gif') no-repeat center/contain;
+  z-index: 999;
+  pointer-events: none;
+  animation: boomScale 0.4s ease-out;
+}
+
+@keyframes boomScale {
+  from { transform: scale(0.5); opacity: 0.5; }
+  to { transform: scale(1); opacity: 1; }
 }
 
 #score, #highScore {
@@ -135,8 +144,6 @@ button {
 <audio id="hitSound" src="https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg"></audio>
 
 <script>
-
-/* ELEMENTS */
 const game = document.getElementById("game");
 const dino = document.getElementById("dino");
 const ground = document.getElementById("ground");
@@ -165,14 +172,34 @@ let timeouts = [];
 let groundPos = 0;
 
 /* WEATHER */
-let currentWeather = "clear";
+function weatherSystem(){
+  intervals.push(setInterval(()=>{
+    if(!gameRunning) return;
+
+    const rand = Math.random();
+
+    if(rand < 0.4){
+      rain.style.opacity = 0;
+      fog.style.opacity = 0;
+    }
+    else if(rand < 0.7){
+      rain.style.opacity = 1;
+      fog.style.opacity = 0;
+    }
+    else{
+      rain.style.opacity = 0;
+      fog.style.opacity = 1;
+    }
+
+  },5000));
+}
 
 /* HIGH SCORE */
 let highScore = localStorage.getItem("dinoHighScore") || 0;
 highScoreDisplay.textContent = "High: " + highScore;
 
 /* START */
-function startGame() {
+function startGame(){
   resetGame();
   gameRunning = true;
   menu.style.display = "none";
@@ -187,7 +214,7 @@ function startGame() {
 }
 
 /* RESET */
-function resetGame() {
+function resetGame(){
   intervals.forEach(clearInterval);
   timeouts.forEach(clearTimeout);
 
@@ -207,32 +234,6 @@ function resetGame() {
   fog.style.opacity = 0;
 
   scoreDisplay.textContent = "Score: 0";
-}
-
-/* WEATHER SYSTEM */
-function weatherSystem(){
-  intervals.push(setInterval(()=>{
-    if(!gameRunning) return;
-
-    const rand = Math.random();
-
-    if(rand < 0.4){
-      currentWeather = "clear";
-      rain.style.opacity = 0;
-      fog.style.opacity = 0;
-    }
-    else if(rand < 0.7){
-      currentWeather = "rain";
-      rain.style.opacity = 1;
-      fog.style.opacity = 0;
-    }
-    else{
-      currentWeather = "fog";
-      rain.style.opacity = 0;
-      fog.style.opacity = 1;
-    }
-
-  }, 5000));
 }
 
 /* LOOP */
@@ -357,17 +358,21 @@ function startScore(){
   },100));
 }
 
-/* EXPLOSION */
+/* 💥 BIG EXPLOSION (CENTERED) */
 function explode(){
   const boom = document.createElement("div");
   boom.classList.add("explosion");
 
-  boom.style.left = "50px";
-  boom.style.bottom = (20 + position) + "px";
+  const dinoRect = dino.getBoundingClientRect();
+  const gameRect = game.getBoundingClientRect();
+  const size = 220;
+
+  boom.style.left = (dinoRect.left - gameRect.left + dinoRect.width/2 - size/2) + "px";
+  boom.style.top = (dinoRect.top - gameRect.top + dinoRect.height/2 - size/2) + "px";
 
   game.appendChild(boom);
 
-  setTimeout(()=>boom.remove(),300);
+  setTimeout(()=>boom.remove(),500);
 }
 
 /* GAME OVER */
