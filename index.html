@@ -140,8 +140,9 @@ button {
   <div id="highScore">High: 0</div>
 </div>
 
-<audio id="jumpSound" src="https://actions.google.com/sounds/v1/cartoon/wood_plank_flicks.ogg"></audio>
-<audio id="hitSound" src="https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg"></audio>
+<!-- 🔊 AUDIO -->
+<audio id="bgMusic" src="sounds/bg.mp3" loop></audio>
+<audio id="hitSound" src="sounds/explosion.mp3"></audio>
 
 <script>
 const game = document.getElementById("game");
@@ -154,7 +155,8 @@ const scoreDisplay = document.getElementById("score");
 const highScoreDisplay = document.getElementById("highScore");
 const menu = document.getElementById("menu");
 
-const jumpSound = document.getElementById("jumpSound");
+/* 🔊 AUDIO */
+const bgMusic = document.getElementById("bgMusic");
 const hitSound = document.getElementById("hitSound");
 
 /* STATE */
@@ -204,6 +206,11 @@ function startGame(){
   gameRunning = true;
   menu.style.display = "none";
 
+  /* 🎵 START MUSIC */
+  bgMusic.currentTime = 0;
+  bgMusic.volume = 0.4;
+  bgMusic.play().catch(()=>{});
+
   spawnObstacle();
   spawnCloud();
   moveGround();
@@ -234,6 +241,10 @@ function resetGame(){
   fog.style.opacity = 0;
 
   scoreDisplay.textContent = "Score: 0";
+
+  /* STOP MUSIC */
+  bgMusic.pause();
+  bgMusic.currentTime = 0;
 }
 
 /* LOOP */
@@ -260,9 +271,6 @@ function jump(){
   if(jumpCount < 2){
     velocity = 15;
     jumpCount++;
-
-    jumpSound.currentTime = 0;
-    jumpSound.play();
   }
 }
 
@@ -358,7 +366,7 @@ function startScore(){
   },100));
 }
 
-/* 💥 BIG EXPLOSION (CENTERED) */
+/* 💥 EXPLOSION */
 function explode(){
   const boom = document.createElement("div");
   boom.classList.add("explosion");
@@ -384,11 +392,16 @@ function triggerGameOver(){
 
   explode();
 
+  /* 💥 PLAY CRASH SOUND */
+  hitSound.currentTime = 0;
+  hitSound.volume = 0.7;
+  hitSound.play();
+
+  /* STOP MUSIC */
+  bgMusic.pause();
+
   intervals.forEach(clearInterval);
   timeouts.forEach(clearTimeout);
-
-  hitSound.currentTime = 0;
-  hitSound.play();
 
   if(score > highScore){
     localStorage.setItem("dinoHighScore", score);
