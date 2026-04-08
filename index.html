@@ -12,20 +12,10 @@ body {
   background: url('images/desert.jpg') no-repeat center/cover;
 }
 
-body::before {
-  content: "";
-  position: fixed;
-  inset: 0;
-  background: rgba(0,0,0,0.3);
-  z-index: 0;
-}
-
 /* MENU */
 #menu {
   text-align: center;
   color: white;
-  position: relative;
-  z-index: 2;
 }
 
 #menu h1 {
@@ -38,7 +28,6 @@ body::before {
   width: 100%;
   height: 250px;
   overflow: hidden;
-  z-index: 1;
 }
 
 /* 👻 */
@@ -49,7 +38,6 @@ body::before {
   width: 70px;
   height: 70px;
   background: url('images/ghost.png') no-repeat center/contain;
-  z-index: 2;
 }
 
 /* 🌵 */
@@ -58,7 +46,6 @@ body::before {
   bottom: 20px;
   right: -60px;
   background: url('images/cactus.png') no-repeat center/contain;
-  z-index: 2;
 }
 
 /* ☁️ */
@@ -67,7 +54,6 @@ body::before {
   width: 100px;
   height: 50px;
   background: url('images/cloud.png') no-repeat center/contain;
-  opacity: 0.8;
 }
 
 /* 🌵 GROUND */
@@ -85,7 +71,7 @@ body::before {
   );
 }
 
-/* 💥 MASSIVE EXPLOSION */
+/* 💥 EXPLOSION */
 .explosion {
   position: absolute;
   width: 350px;
@@ -108,27 +94,16 @@ body::before {
 }
 
 /* SCORE */
-#score, #highScore {
+#score {
   position: absolute;
   right: 20px;
+  top: 10px;
   color: white;
-}
-
-#score { top: 10px; }
-#highScore { top: 30px; }
-
-.score {
-  transition: transform 0.2s ease;
-}
-
-.score.pop {
-  transform: scale(1.4);
 }
 
 button {
   padding: 10px 20px;
   margin: 5px;
-  cursor: pointer;
 }
 </style>
 </head>
@@ -138,51 +113,54 @@ button {
 <div id="menu">
   <h1>👻 Ghost Runner</h1>
   <button onclick="startGame()">Start</button>
-  <button onclick="resetGame()">Restart</button>
 </div>
 
 <div id="game">
   <div id="dino"></div>
   <div id="ground"></div>
-  <div id="score" class="score">Score: 0</div>
-  <div id="highScore">High: 0</div>
+  <div id="score">Score: 0</div>
 </div>
 
-<audio id="jumpSound" src="https://actions.google.com/sounds/v1/cartoon/wood_plank_flicks.ogg"></audio>
-<audio id="hitSound" src="https://actions.google.com/sounds/v1/cartoon/explosion.ogg"></audio>
-<audio id="bgMusic" src="https://actions.google.com/sounds/v1/ambiences/desert_wind.ogg" loop></audio>
-
 <script>
+/* 🚀 IMAGE PRELOAD (BEST METHOD) */
+const images = [
+  "images/ghost.png",
+  "images/cactus.png",
+  "images/cloud.png",
+  "images/explosion.gif",
+  "images/desert.jpg"
+];
+
+function preloadImages(list) {
+  list.forEach(src => {
+    const img = new Image();
+    img.src = src;
+  });
+}
+
+preloadImages(images);
+
+/* GAME ELEMENTS */
 const game = document.getElementById("game");
 const dino = document.getElementById("dino");
 const ground = document.getElementById("ground");
 const scoreDisplay = document.getElementById("score");
-const highScoreDisplay = document.getElementById("highScore");
 const menu = document.getElementById("menu");
-
-const jumpSound = document.getElementById("jumpSound");
-const hitSound = document.getElementById("hitSound");
-const bgMusic = document.getElementById("bgMusic");
 
 let gameRunning = false;
 let gameOver = false;
-
-let score = 0;
-let speed = 4;
 
 let position = 0;
 let velocity = 0;
 let jumpCount = 0;
 
+let score = 0;
+let speed = 4;
+
 let intervals = [];
 let timeouts = [];
-let scoreInterval;
 let groundPos = 0;
-
 let lastObstacle = null;
-
-let highScore = localStorage.getItem("dinoHighScore") || 0;
-highScoreDisplay.innerHTML = "High: " + highScore;
 
 /* START */
 function startGame() {
@@ -192,14 +170,9 @@ function startGame() {
   gameRunning = true;
   menu.style.display = "none";
 
-  startScore();
   spawnObstacle();
-  spawnCloud();
   moveGround();
-
-  bgMusic.volume = 0.4;
-  bgMusic.play().catch(()=>{});
-
+  startScore();
   gameLoop();
 }
 
@@ -207,33 +180,21 @@ function startGame() {
 function resetGame() {
   intervals.forEach(clearInterval);
   timeouts.forEach(clearTimeout);
-  clearInterval(scoreInterval);
 
-  document.querySelectorAll(".obstacle, .cloud, .explosion")
+  document.querySelectorAll(".obstacle, .explosion")
     .forEach(el => el.remove());
 
   intervals = [];
   timeouts = [];
 
-  score = 0;
-  speed = 4;
   position = 0;
   velocity = 0;
   jumpCount = 0;
-  groundPos = 0;
-
-  gameRunning = false;
-  gameOver = false;
+  score = 0;
+  speed = 4;
 
   dino.style.bottom = "20px";
   scoreDisplay.innerHTML = "Score: 0";
-
-  ground.style.transform = "translateX(0)";
-
-  bgMusic.pause();
-  bgMusic.currentTime = 0;
-
-  menu.style.display = "block";
 }
 
 /* LOOP */
@@ -255,21 +216,12 @@ function gameLoop() {
 }
 
 /* JUMP */
-function jump() {
-  if (!gameRunning || gameOver) return;
-
-  if (jumpCount < 2) {
+document.addEventListener("keydown", e => {
+  if (e.code === "Space" && jumpCount < 2) {
     velocity = 15;
     jumpCount++;
-    jumpSound.currentTime = 0;
-    jumpSound.play();
   }
-}
-
-document.addEventListener("keydown", e => {
-  if (e.code === "Space") jump();
 });
-document.addEventListener("touchstart", jump);
 
 /* OBSTACLE */
 function spawnObstacle() {
@@ -298,47 +250,15 @@ function spawnObstacle() {
       right < window.innerWidth - 40 &&
       position < size
     ) {
-      triggerGameOver();
-    }
-
-    if (right > window.innerWidth) {
-      obs.remove();
-      clearInterval(move);
+      explode();
+      gameRunning = false;
     }
 
   }, 20);
 
   intervals.push(move);
 
-  let t = setTimeout(spawnObstacle, Math.random() * 2000 + 1000);
-  timeouts.push(t);
-}
-
-/* CLOUD */
-function spawnCloud() {
-  if (!gameRunning) return;
-
-  const cloud = document.createElement("div");
-  cloud.classList.add("cloud");
-
-  cloud.style.bottom = (Math.random() * 120 + 100) + "px";
-  cloud.style.right = "-100px";
-
-  game.appendChild(cloud);
-
-  let move = setInterval(() => {
-    let right = parseInt(getComputedStyle(cloud).right);
-    cloud.style.right = right + 2 + "px";
-
-    if (right > window.innerWidth) {
-      cloud.remove();
-      clearInterval(move);
-    }
-  }, 30);
-
-  intervals.push(move);
-
-  let t = setTimeout(spawnCloud, Math.random() * 3000 + 2000);
+  let t = setTimeout(spawnObstacle, 1500);
   timeouts.push(t);
 }
 
@@ -346,10 +266,8 @@ function spawnCloud() {
 function moveGround() {
   let groundInterval = setInterval(() => {
     if (!gameRunning) return;
-
     groundPos += speed;
     ground.style.transform = `translateX(-${groundPos}px)`;
-
   }, 20);
 
   intervals.push(groundInterval);
@@ -357,26 +275,22 @@ function moveGround() {
 
 /* SCORE */
 function startScore() {
-  scoreInterval = setInterval(() => {
+  let scoreInt = setInterval(() => {
     if (!gameRunning) return;
-
     score++;
     scoreDisplay.innerHTML = "Score: " + score;
-
-    scoreDisplay.classList.add("pop");
-    setTimeout(() => scoreDisplay.classList.remove("pop"), 150);
-
-    speed = Math.min(12, 4 + score / 200);
   }, 100);
+
+  intervals.push(scoreInt);
 }
 
-/* 💥 FIXED EXPLOSION POSITION */
+/* 💥 EXPLOSION */
 function explode() {
   const boom = document.createElement("div");
   boom.classList.add("explosion");
 
   const dinoX = dino.offsetLeft;
-  const obsX = lastObstacle ? game.offsetWidth - parseInt(getComputedStyle(lastObstacle).right) : dinoX;
+  const obsX = game.offsetWidth - parseInt(getComputedStyle(lastObstacle).right);
 
   const centerX = (dinoX + obsX) / 2;
 
@@ -387,35 +301,7 @@ function explode() {
 
   game.classList.add("shake");
   setTimeout(() => game.classList.remove("shake"), 400);
-
-  setTimeout(() => boom.remove(), 600);
 }
-
-/* GAME OVER */
-function triggerGameOver() {
-  if (gameOver) return;
-
-  gameOver = true;
-  gameRunning = false;
-
-  explode();
-
-  intervals.forEach(clearInterval);
-  timeouts.forEach(clearTimeout);
-  clearInterval(scoreInterval);
-
-  bgMusic.pause();
-  hitSound.currentTime = 0;
-  hitSound.play();
-
-  if (score > highScore) {
-    localStorage.setItem("dinoHighScore", score);
-  }
-
-  menu.style.display = "block";
-}
-
-resetGame();
 </script>
 
 </body>
