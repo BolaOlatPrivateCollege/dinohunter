@@ -48,6 +48,15 @@ body {
   background: url('images/cactus.png') no-repeat center/contain;
 }
 
+/* ☁️ */
+.cloud {
+  position: absolute;
+  width: 100px;
+  height: 50px;
+  background: url('images/cloud.png') no-repeat center/contain;
+  opacity: 0.8;
+}
+
 /* 🌵 GROUND */
 #ground {
   position: absolute;
@@ -63,7 +72,7 @@ body {
   );
 }
 
-/* 💥 EXPLOSION */
+/* 💥 MASSIVE EXPLOSION */
 .explosion {
   position: absolute;
   width: 350px;
@@ -91,8 +100,10 @@ body {
   right: 20px;
   top: 10px;
   color: white;
+  font-weight: bold;
 }
 
+/* BUTTON */
 button {
   padding: 10px 20px;
   margin: 5px;
@@ -105,6 +116,7 @@ button {
 <div id="menu">
   <h1>👻 Ghost Runner</h1>
   <button onclick="startGame()">Start</button>
+  <button onclick="resetGame()">Restart</button>
 </div>
 
 <div id="game">
@@ -120,7 +132,6 @@ const ground = document.getElementById("ground");
 const scoreDisplay = document.getElementById("score");
 const menu = document.getElementById("menu");
 
-/* STATE */
 let gameRunning = false;
 let gameOver = false;
 let explosionTriggered = false;
@@ -135,7 +146,8 @@ let speed = 4;
 let intervals = [];
 let timeouts = [];
 let groundPos = 0;
-let lastObstacle = null;
+
+let currentObstacle = null;
 
 /* START */
 function startGame() {
@@ -146,6 +158,7 @@ function startGame() {
   menu.style.display = "none";
 
   spawnObstacle();
+  spawnCloud();
   moveGround();
   startScore();
   gameLoop();
@@ -156,17 +169,17 @@ function resetGame() {
   intervals.forEach(clearInterval);
   timeouts.forEach(clearTimeout);
 
-  document.querySelectorAll(".obstacle, .explosion")
+  document.querySelectorAll(".obstacle, .cloud, .explosion")
     .forEach(el => el.remove());
 
   intervals = [];
   timeouts = [];
 
+  score = 0;
+  speed = 4;
   position = 0;
   velocity = 0;
   jumpCount = 0;
-  score = 0;
-  speed = 4;
   groundPos = 0;
 
   gameRunning = false;
@@ -220,7 +233,7 @@ function spawnObstacle() {
   obs.style.right = "-60px";
 
   game.appendChild(obs);
-  lastObstacle = obs;
+  currentObstacle = obs;
 
   let move = setInterval(() => {
     if (!gameRunning || gameOver) return;
@@ -228,12 +241,13 @@ function spawnObstacle() {
     let right = parseInt(getComputedStyle(obs).right);
     obs.style.right = right + speed + "px";
 
+    // collision
     if (
       right > window.innerWidth - 120 &&
       right < window.innerWidth - 40 &&
       position < size
     ) {
-      triggerGameOver();
+      triggerGameOver(obs);
     }
 
     if (right > window.innerWidth) {
@@ -245,71 +259,99 @@ function spawnObstacle() {
 
   intervals.push(move);
 
-  let t = setTimeout(spawnObstacle, 1500);
+  let t = setTimeout(spawnObstacle, Math.random()*2000+1000);
+  timeouts.push(t);
+}
+
+/* CLOUD */
+function spawnCloud() {
+  if (!gameRunning) return;
+
+  const cloud = document.createElement("div");
+  cloud.classList.add("cloud");
+
+  cloud.style.bottom = (Math.random()*120+100)+"px";
+  cloud.style.right = "-100px";
+
+  game.appendChild(cloud);
+
+  let move = setInterval(()=>{
+    let right = parseInt(getComputedStyle(cloud).right);
+    cloud.style.right = right + 2 + "px";
+
+    if(right > window.innerWidth){
+      cloud.remove();
+      clearInterval(move);
+    }
+  },30);
+
+  intervals.push(move);
+
+  let t = setTimeout(spawnCloud, Math.random()*3000+2000);
   timeouts.push(t);
 }
 
 /* GROUND */
-function moveGround() {
-  let groundInterval = setInterval(() => {
-    if (!gameRunning) return;
-
+function moveGround(){
+  let g = setInterval(()=>{
+    if(!gameRunning) return;
     groundPos += speed;
     ground.style.transform = `translateX(-${groundPos}px)`;
-  }, 20);
+  },20);
 
-  intervals.push(groundInterval);
+  intervals.push(g);
 }
 
 /* SCORE */
-function startScore() {
-  let scoreInt = setInterval(() => {
-    if (!gameRunning) return;
-
+function startScore(){
+  let s = setInterval(()=>{
+    if(!gameRunning) return;
     score++;
     scoreDisplay.innerHTML = "Score: " + score;
-  }, 100);
+  },100);
 
-  intervals.push(scoreInt);
+  intervals.push(s);
 }
 
-/* 💥 EXPLOSION (FIXED SINGLE TRIGGER) */
-function explode() {
-  if (explosionTriggered) return;
+/* 💥 EXPLOSION (ACCURATE POSITION) */
+function explode(obs){
+  if(explosionTriggered) return;
   explosionTriggered = true;
 
   const boom = document.createElement("div");
   boom.classList.add("explosion");
 
-  const dinoX = dino.offsetLeft;
-  const obsX = game.offsetWidth - parseInt(getComputedStyle(lastObstacle).right);
+  const obsRect = obs.getBoundingClientRect();
+  const gameRect = game.getBoundingClientRect();
 
-  const centerX = (dinoX + obsX) / 2;
+  const x = obsRect.left - gameRect.left;
+  const y = obsRect.top - gameRect.top;
 
-  boom.style.left = (centerX - 175) + "px";
-  boom.style.bottom = (20 + position - 100) + "px";
+  boom.style.left = (x - 140) + "px";
+  boom.style.top = (y - 140) + "px";
 
   game.appendChild(boom);
 
   game.classList.add("shake");
-  setTimeout(() => game.classList.remove("shake"), 400);
+  setTimeout(()=>game.classList.remove("shake"),400);
+
+  setTimeout(()=>boom.remove(),600);
 }
 
 /* GAME OVER */
-function triggerGameOver() {
-  if (gameOver) return;
+function triggerGameOver(obs){
+  if(gameOver) return;
 
   gameOver = true;
   gameRunning = false;
 
-  explode();
+  explode(obs);
 
   intervals.forEach(clearInterval);
   timeouts.forEach(clearTimeout);
 
   menu.style.display = "block";
 }
-
 </script>
 
 </body>
